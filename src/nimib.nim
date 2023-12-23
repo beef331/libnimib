@@ -1,6 +1,6 @@
 import pkg/nimib
 import pkg/nimib/[config, themes, renders]
-import std/[ospaths, dirs, paths, tempfiles, osproc, strutils]
+import std/[dirs, paths, tempfiles, osproc, strutils, tables, appdirs]
 
 
 {.pragma: nimibProc, exportc: "nimib_$1", cdecl, dynlib, raises: [].}
@@ -10,63 +10,57 @@ var
   nb: NbDoc
   exec_cmd {.nimibVar.}: cstring
   file_ext {.nimibVar.}: cstring
+  stringTable: Table[cstring, string]
+
+proc free_string(cstr: cstring) {.nimibproc.} =
+  if cstr in stringTable:
+    stringTable.del(cstr)
 
 
-const 
-  failToReadError = "Fail to read"
-  failToCreateFileError = "Fail to create file"
-  failToExecError = "Fail to create file"
-  failToGetDirError = "Fail to get dir"
-  failToRelDir = "Fail to get relative dir"
-  failToSetDir = "Fail to set dir"
-
-
+template returnException(exp: typed): untyped =
+  try:
+    {.cast(raises:[CatchableError]).}:
+      exp
+  except CatchableError as e:
+    var msg = e.msg
+    let theCstr = cstring msg
+    stringTable[theCstr] = move msg
+    return theCstr
 
 
 proc init*(file: cstring): cstring {.nimibProc.} =
   let
     theme = useDefault
     backend = useHtmlBackend
-  try:
+  
+  returnException:
     nb.initDir = AbsoluteDir getCurrentDir()
-    echo string getCurrentDir()
     nb.thisFile = AbsoluteFile $file
-  except:
-    return failToGetDirError
-  try:
-    nb.source = read(nb.thisFile)
-  except:
-    return failToReadError
 
+  returnException:
+    nb.source = read(nb.thisFile)
 
     # no option handling currently
-  nb.filename = nb.thisFile.string.splitFile.name & ".html"
+  nb.filename = nb.thisFile.Path.splitFile.name.string & ".html"
   
   if nb.cfg.srcDir != "":
-    try:
-      nb.filename = (nb.thisDir.relativeTo nb.srcDir).string / nb.filename
-    except:
-      return failToRelDir
+    returnException:
+      nb.filename = string (nb.thisDir.relativeTo nb.srcDir).Path / nb.filename.Path
 
   if nb.cfg.homeDir != "":
-    try:
+    returnException:
       setCurrentDir nb.homeDir
-    except:
-      return failToSetDir
 
   # can be overriden by theme, but it is better to initialize this anyway
   nb.templateDirs = @["./", "./templates/"]
   nb.partials = initTable[string, string]()
   nb.context = newContext(searchDirs = @[]) # templateDirs and partials added during nbSave
 
-  try:
+  returnException:
     # apply render backend (default backend can be overriden by theme)
     backend nb
-
     # apply theme
     theme nb
-  except Exception as e:
-    echo e.msg 
 
 proc add_block*(command, code, output: cstring) {.nimibProc.} =
   let blk = NbBlock(command: $command, code: $code, output: $output, context: newContext(searchDirs = @[], partials = nbDoc.partials))
@@ -74,20 +68,18 @@ proc add_block*(command, code, output: cstring) {.nimibProc.} =
   nb.blk = blk
 
 proc add_code*(source: cstring): cstring {.nimibProc.} =
-  let output: string
-  try:
-    let (tempFile, path) = createTempFile("nimib_", $file_ext, getTempDir())
+  var 
+    output: string
+    path: string
+  returnException:
+    let (tempFile, temppath) = createTempFile("nimib_", $file_ext, getTempDir().string)
     tempFile.write($source)
     tempFile.flushFile()
     tempFile.close()
-    try:
-      output = execProcess(($exec_cmd).replace("$file", path))
-    except:
-      output = ""
-      return failToExecError
-  except:
-    output = ""
-    return failToCreateFileError
+    path = temppath
+
+  returnException:
+    output = execProcess(($exec_cmd).replace("$file", path))
   
   add_block("nbCode", $source, output)
   nb.blk.context["code"] = nb.blk.code
@@ -96,8 +88,6 @@ proc add_code*(source: cstring): cstring {.nimibProc.} =
 proc add_text*(output: cstring) {.nimibproc.} =
   add_block("nbText", "", output)
 
-proc save*() {.nimibproc.} =
-  try:
+proc save*(): cstring {.nimibproc.} =
+  returnException:
     nbSave()
-  except Exception as e:
-    echo "Failed to save: ", e.msg

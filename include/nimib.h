@@ -1,6 +1,5 @@
-char *nimib_exec_cmd;
-char *nimib_file_ext;
-
+void nimib_set_exec_cmd(char *);
+void nimib_set_file_ext(char *);
 void nimib_free_string(char *);
 char *nimib_init(char *);
 void nimib_add_block(char *, char *, char *);

@@ -8,14 +8,24 @@ import std/[dirs, paths, tempfiles, osproc, strutils, tables, appdirs]
 
 var 
   nb: NbDoc
-  exec_cmd {.nimibVar.}: cstring
-  file_ext {.nimibVar.}: cstring
+  exec_cmd: string
+  file_ext: string
   stringTable: Table[cstring, string]
 
 proc free_string(cstr: cstring) {.nimibproc.} =
   if cstr in stringTable:
     stringTable.del(cstr)
 
+# The follow procs are not apart of `init` to allow the user to have multiple programming languages
+# This allows doing C then Python then Rust, or whatever have you
+# Perhaps in the future `add_code` could take in `language`,
+# then use that to search a config for the desired command
+
+proc set_exec_cmd(cmd: cstring) {.nimibproc.} =
+  exec_cmd = $cmd
+
+proc set_file_ext(ext: cstring) {.nimibproc.} =
+  file_ext = $ext
 
 template returnException(exp: typed): untyped =
   try:
@@ -71,15 +81,23 @@ proc add_code*(source: cstring): cstring {.nimibProc.} =
   var 
     output: string
     path: string
+
+  if file_ext == "":
+    return "File extenstion not set"
+  if exec_cmd == "":
+    return "Exec string not set"
+  if source == nil:
+    return "No source specified"
+
   returnException:
-    let (tempFile, temppath) = createTempFile("nimib_", $file_ext, getTempDir().string)
+    let (tempFile, temppath) = createTempFile("nimib_", file_ext, getTempDir().string)
     tempFile.write($source)
     tempFile.flushFile()
     tempFile.close()
     path = temppath
 
   returnException:
-    output = execProcess(($exec_cmd).replace("$file", path))
+    output = execProcess(exec_cmd.replace("$file", path))
   
   add_block("nbCode", $source, output)
   nb.blk.context["code"] = nb.blk.code

@@ -1,7 +1,7 @@
 #include "nimib.h"
 int main() {
-  nimib_file_ext = ".c";
-  nimib_exec_cmd = "gcc -o $file.out $file > /dev/null; $file.out";
+  nimib_set_file_ext(".c");
+  nimib_set_exec_cmd("gcc -o $file.out $file > /dev/null; $file.out");
   nimib_init(__FILE__);
   nimib_add_text("# This is Nimib from C!\n"
                  "It is a wonderful thing to be able to use nimib from C.\n"

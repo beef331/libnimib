@@ -7,15 +7,17 @@ int main() {
   nimib_add_text("# This is Nimib from C!\n"
                  "It is a wonderful thing to be able to use nimib from C.\n"
                  "It allows you to do wonderful things!\n");
-  nimib_add_code("#include <stdio.h>\n"
-                 "#include <stdlib.h>\n"
-                 "int main(){\n"
-                 "  int *i = (int*)malloc(sizeof(int));\n"
-                 "  printf(\"%ld\", i);\n"
-                 "  return 0;\n"
-                 "}\n");
+  nimib_add_code_with_lang("//C\n#include <stdio.h>\n"
+                           "#include <stdlib.h>\n"
+                           "int main(){\n"
+                           "  int *i = (int*)malloc(sizeof(int));\n"
+                           "  printf(\"%ld\", i);\n"
+                           "  return 0;\n"
+                           "}\n",
+                           "C");
 
-  nimib_add_code(R"""(
+  nimib_add_code_with_lang(R"""(
+//C
 #include <stdio.h>
 #include <stdlib.h>
 int main(){
@@ -24,12 +26,15 @@ int main(){
   printf("%ld", i);
   return 0;
 }
-)""");
+)""",
+                           "c");
 
-  nimib_add_code_with_ext("print('hello world')", ".py");
+  nimib_add_code_with_ext_lang("'''python'''\nprint('hello world')", ".py",
+                               "python");
 
-  nimib_add_code_with_ext_cmd(
+  nimib_add_code_with_ext_cmd_lang(
       R"""(
+// Rust
 fn main(){
   println!("Hello, world");
   println!("Huh")
@@ -37,7 +42,7 @@ fn main(){
 }
 
   )""",
-      ".rs", "rustc -o $file.out $file >> /dev/null; $file.out");
+      ".rs", "rustc -o $file.out $file >> /dev/null; $file.out", "rust");
 
   nimib_add_text("As you can see it's very easy to do!");
   nimib_save();

@@ -81,6 +81,11 @@ proc add_block*(command, code, output: cstring) {.nimibProc.} =
   nb.blocks.add blk
   nb.blk = blk
 
+proc add_block_with_lang*(command, code, output, language: cstring) {.nimibProc.} =
+  let blk = NbBlock(command: $command, code: $code, output: $output, language: $language, context: newContext(searchDirs = @[], partials = nbDoc.partials))
+  nb.blocks.add blk
+  nb.blk = blk
+
 proc getCmd(cmd, ext: cstring): tuple[isErr: bool, data: string] {.raises: [].}=
   if cmd != nil:
     (false, $cmd)
@@ -94,7 +99,7 @@ proc getCmd(cmd, ext: cstring): tuple[isErr: bool, data: string] {.raises: [].}=
       {.cast(raises: []).}:
         (false, extCommand[$ext])
 
-proc addCodeImpl(source, ext, cmd: cstring): cstring {.raises: [].} =
+proc addCodeImpl(source, ext, cmd, language: cstring): cstring {.raises: [].} =
   let 
     (cmdErrored, cmd) = getCmd(cmd, ext)
     ext = 
@@ -127,19 +132,28 @@ proc addCodeImpl(source, ext, cmd: cstring): cstring {.raises: [].} =
   returnException:
     output = execProcess(cmd.replace("$file", path))
   
-  add_block("nbCode", $source, output)
+  add_block_with_lang(cstring"nbCode", source, cstring output, language)
   nb.blk.context["code"] = nb.blk.code
   nb.blk.context["output"] = nb.blk.output
 
 
 proc add_code*(source: cstring): cstring {.nimibProc.} =
-  addCodeImpl(source, nil, nil)
+  addCodeImpl(source, nil, nil, nil)
+
+proc add_code_with_lang*(source, language: cstring): cstring {.nimibProc.} =
+  addCodeImpl(source, nil, nil, language)
 
 proc add_code_with_ext*(source, ext: cstring): cstring {.nimibProc.} =
-  addCodeImpl(source, ext, nil)
+  addCodeImpl(source, ext, nil, nil)
+
+proc add_code_with_ext_lang*(source, ext, language: cstring): cstring {.nimibProc.} =
+  addCodeImpl(source, ext, nil, language)
 
 proc add_code_with_ext_cmd*(source, ext, cmd: cstring): cstring {.nimibProc.} =
-  addCodeImpl(source, ext, cmd)
+  addCodeImpl(source, ext, cmd, nil)
+
+proc add_code_with_ext_cmd_lang*(source, ext, cmd, language: cstring): cstring {.nimibProc.} =
+  addCodeImpl(source, ext, cmd, language)
 
 proc add_text*(output: cstring) {.nimibproc.} =
   add_block("nbText", "", output)

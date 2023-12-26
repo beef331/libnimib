@@ -13,6 +13,8 @@
 (define-nimib nimib-init (_fun NimibString -> NimibString))
 (define-nimib nimib-add-text (_fun NimibString -> _void))
 (define-nimib nimib-add-code (_fun NimibString -> NimibString))
+(define-nimib nimib-add-code-with-ext (_fun NimibString NimibString -> NimibString))
+(define-nimib nimib-add-code-with-ext-cmd (_fun NimibString NimibString -> NimibString))
 (define-nimib nimib-save (_fun -> NimibString))
 
 (nimib-set-file-ext ".rkt")

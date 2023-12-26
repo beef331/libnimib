@@ -11,6 +11,8 @@ extern {
     fn nimib_init(file_path: RealCstring) -> RealCstring;
     fn nimib_add_block(name: RealCstring, source: RealCstring, output: RealCstring);
     fn nimib_add_code(code: RealCstring) -> RealCstring;
+    fn nimib_add_code_with_ext(code: RealCstring, ext: RealCstring) -> RealCstring;
+    fn nimib_add_code_with_ext_cmd(code: RealCstring, ext: RealCstring, cmd: RealCstring) -> RealCstring;
     fn nimib_add_text(text: RealCstring);
     fn nimib_save();
 

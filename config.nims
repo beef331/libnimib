@@ -12,3 +12,6 @@ task testc, "builds the C program":
 task testrust, "builds the Rust program":
   exec("rustc  -o test.rust.out tests/test.rs")
   exec("./test.rust.out")
+
+task testracket, "builds the Racket program":
+  exec("racket ./tests/test.rkt")

@@ -161,6 +161,18 @@ proc add_code_with_ext_cmd_lang*(source, ext, cmd, language: cstring): cstring {
 proc add_text*(output: cstring) {.nimibproc.} =
   add_block("nbText", "", output)
 
+proc add_image*(url, caption, alt: cstring): cstring {.nimibProc.} =
+  returnException:
+    nbImage($url, $caption, $alt)
+
+proc add_file(path: cstring): cstring {.nimibProc.} =
+  returnException:
+    nbFile($path)
+
+proc add_file_name_content(name, content: cstring): cstring {.nimibProc.} =
+  returnException:
+    nbFile($name, $content)
+
 proc save*(): cstring {.nimibproc.} =
   returnException:
     nbSave()

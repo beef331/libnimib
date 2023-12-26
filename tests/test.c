@@ -4,9 +4,15 @@ int main() {
   nimib_set_exec_cmd("gcc -o $file.out $file > /dev/null; $file.out");
   nimib_set_ext_cmd(".py", "python $file");
   nimib_init(__FILE__);
+  nimib_add_image("https://nim-lang.org/assets/img/logo.svg", 0,
+                  "Nim-lang logo here");
   nimib_add_text("# This is Nimib from C!\n"
                  "It is a wonderful thing to be able to use nimib from C.\n"
-                 "It allows you to do wonderful things!\n");
+                 "It allows you to do wonderful things!\n"
+                 "The following is the simple ABI that it exposes in C syntax");
+
+  nimib_add_file("include/nimib.h");
+
   nimib_add_code_with_lang("#include <stdio.h>\n"
                            "#include <stdlib.h>\n"
                            "int main(){\n"

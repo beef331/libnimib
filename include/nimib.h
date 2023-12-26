@@ -20,3 +20,8 @@ char *nimib_add_code_with_ext_cmd(char *, char *, char *);
 char *nimib_add_code_with_ext_cmd_lang(char *, char *, char *, char *);
 
 void nimib_add_text(char *);
+
+char *nimib_add_image(char *, char *, char *);
+
+char *nimib_add_file(char *);
+char *nimib_add_file_name_content(char *, char *);

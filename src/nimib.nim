@@ -73,7 +73,13 @@ proc init*(file: cstring): cstring {.nimibProc.} =
   returnException:
     # apply render backend (default backend can be overriden by theme)
     backend nb
-    # apply theme
+
+    # Following is required for adding syntax highlighting in HTML/JS
+    nb.partials["nbArbitraryCode"] = """
+{{>nbArbitraryCodeSource}}
+{{>nbCodeOutput}}"""
+    nb.partials["nbArbitraryCodeSource"] = "<pre><code class=\"hljs {{&language}}\">{{&codeHighlighted}}</code></pre>"
+    nb.renderPlans["nbArbitraryCode"] = @["highlightCode"]
     theme nb
 
 proc add_block*(command, code, output: cstring) {.nimibProc.} =
@@ -94,7 +100,7 @@ proc getCmd(cmd, ext: cstring): tuple[isErr: bool, data: string] {.raises: [].}=
       {.cast(raises: []).}:
         (false, extCommand[$ext])
 
-proc addCodeImpl(source, ext, cmd: cstring): cstring {.raises: [].} =
+proc addCodeImpl(source, ext, cmd, language: cstring): cstring {.raises: [].} =
   let 
     (cmdErrored, cmd) = getCmd(cmd, ext)
     ext = 
@@ -127,19 +133,30 @@ proc addCodeImpl(source, ext, cmd: cstring): cstring {.raises: [].} =
   returnException:
     output = execProcess(cmd.replace("$file", path))
   
-  add_block("nbCode", $source, output)
+  add_block("nbArbitraryCode", source, cstring output)
+  if language != nil:
+    nb.blk.context["language"] = "language-" & $language
   nb.blk.context["code"] = nb.blk.code
   nb.blk.context["output"] = nb.blk.output
 
 
 proc add_code*(source: cstring): cstring {.nimibProc.} =
-  addCodeImpl(source, nil, nil)
+  addCodeImpl(source, nil, nil, nil)
+
+proc add_code_with_lang*(source, language: cstring): cstring {.nimibProc.} =
+  addCodeImpl(source, nil, nil, language)
 
 proc add_code_with_ext*(source, ext: cstring): cstring {.nimibProc.} =
-  addCodeImpl(source, ext, nil)
+  addCodeImpl(source, ext, nil, nil)
+
+proc add_code_with_ext_lang*(source, ext, language: cstring): cstring {.nimibProc.} =
+  addCodeImpl(source, ext, nil, language)
 
 proc add_code_with_ext_cmd*(source, ext, cmd: cstring): cstring {.nimibProc.} =
-  addCodeImpl(source, ext, cmd)
+  addCodeImpl(source, ext, cmd, nil)
+
+proc add_code_with_ext_cmd_lang*(source, ext, cmd, language: cstring): cstring {.nimibProc.} =
+  addCodeImpl(source, ext, cmd, language)
 
 proc add_text*(output: cstring) {.nimibproc.} =
   add_block("nbText", "", output)

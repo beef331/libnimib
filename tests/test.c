@@ -7,13 +7,14 @@ int main() {
   nimib_add_text("# This is Nimib from C!\n"
                  "It is a wonderful thing to be able to use nimib from C.\n"
                  "It allows you to do wonderful things!\n");
-  nimib_add_code("#include <stdio.h>\n"
-                 "#include <stdlib.h>\n"
-                 "int main(){\n"
-                 "  int *i = (int*)malloc(sizeof(int));\n"
-                 "  printf(\"%ld\", i);\n"
-                 "  return 0;\n"
-                 "}\n");
+  nimib_add_code_with_lang("#include <stdio.h>\n"
+                           "#include <stdlib.h>\n"
+                           "int main(){\n"
+                           "  int *i = (int*)malloc(sizeof(int));\n"
+                           "  printf(\"%ld\", i);\n"
+                           "  return 0;\n"
+                           "}\n",
+                           "C");
 
   nimib_add_code(R"""(
 #include <stdio.h>
@@ -26,7 +27,7 @@ int main(){
 }
 )""");
 
-  nimib_add_code_with_ext("print('hello world')", ".py");
+  nimib_add_code_with_ext_lang("print('hello world')", ".py", "python");
 
   nimib_add_code_with_ext_cmd(
       R"""(
@@ -38,6 +39,10 @@ fn main(){
 
   )""",
       ".rs", "rustc -o $file.out $file >> /dev/null; $file.out");
+
+  nimib_add_code_with_ext_cmd_lang("#lang racket/base\n(displayln \"Hello, "
+                                   "World\")\n(displayln (+ 10 20))\n",
+                                   ".rkt", "racket $file", "lisp");
 
   nimib_add_text("As you can see it's very easy to do!");
   nimib_save();

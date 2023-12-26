@@ -40,12 +40,8 @@ template returnException(exp: typed): untyped =
     {.cast(raises:[CatchableError]).}:
       exp
   except CatchableError as e:
-    var msg = e.msg
-    let theCstr = cstring msg
-    stringTable[theCstr] = move msg
-    return theCstr
-
-
+    return makeErrStr e.msg
+   
 proc init*(file: cstring): cstring {.nimibProc.} =
   let
     theme = useDefault

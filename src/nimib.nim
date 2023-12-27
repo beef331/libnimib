@@ -1,18 +1,17 @@
 import pkg/nimib
-import pkg/nimib/[config, themes, renders]
-import std/[dirs, paths, tempfiles, osproc, strutils, tables, appdirs]
-
+import pkg/nimib/[themes, renders]
+import std/[paths, tempfiles, osproc, strutils, tables, appdirs]
 
 {.pragma: nimibProc, exportc: "nimib_$1", cdecl, dynlib, raises: [].}
 {.pragma: nimibVar, exportc: "nimib_$1", dynlib.}
 
-var 
+var
   nb: NbDoc
   execCmd: string
   fileExt: string
   stringTable: Table[cstring, string]
   extCommand: Table[string, string]
-  
+
 proc makeErrStr(s: sink string): cstring =
   result = cstring s
   stringTable[cstring s] = ensuremove s
@@ -37,16 +36,16 @@ proc set_ext_cmd(ext, cmd: cstring) {.nimibproc.} =
 
 template returnException(exp: typed): untyped =
   try:
-    {.cast(raises:[CatchableError]).}:
+    {.cast(raises: [CatchableError]).}:
       exp
   except CatchableError as e:
     return makeErrStr e.msg
-   
+
 proc init*(file: cstring): cstring {.nimibProc.} =
   let
     theme = useDefault
     backend = useHtmlBackend
-  
+
   returnException:
     nb.initDir = AbsoluteDir getCurrentDir()
     nb.thisFile = AbsoluteFile $file
@@ -56,7 +55,7 @@ proc init*(file: cstring): cstring {.nimibProc.} =
 
     # no option handling currently
   nb.filename = nb.thisFile.Path.splitFile.name.string & ".html"
-  
+
   if nb.cfg.srcDir != "":
     returnException:
       nb.filename = string (nb.thisDir.relativeTo nb.srcDir).Path / nb.filename.Path
@@ -68,26 +67,36 @@ proc init*(file: cstring): cstring {.nimibProc.} =
   # can be overriden by theme, but it is better to initialize this anyway
   nb.templateDirs = @["./", "./templates/"]
   nb.partials = initTable[string, string]()
-  nb.context = newContext(searchDirs = @[]) # templateDirs and partials added during nbSave
+  nb.context = newContext(searchDirs = @[])
+    # templateDirs and partials added during nbSave
 
   returnException:
     # apply render backend (default backend can be overriden by theme)
     backend nb
 
     # Following is required for adding syntax highlighting in HTML/JS
-    nb.partials["nbArbitraryCode"] = """
+    nb.partials["nbArbitraryCode"] =
+      """
 {{>nbArbitraryCodeSource}}
 {{>nbCodeOutput}}"""
-    nb.partials["nbArbitraryCodeSource"] = "<pre><code class=\"hljs {{&language}}\">{{&codeHighlighted}}</code></pre>"
+    nb.partials["nbArbitraryCodeSource"] =
+      "<pre><code class=\"hljs {{&language}}\">{{&codeHighlighted}}</code></pre>"
     nb.renderPlans["nbArbitraryCode"] = @["highlightCode"]
     theme nb
 
 proc add_block*(command, code, output: cstring) {.nimibProc.} =
-  let blk = NbBlock(command: $command, code: $code, output: $output, context: newContext(searchDirs = @[], partials = nbDoc.partials))
+  let
+    blk =
+      NbBlock(
+        command: $command,
+        code: $code,
+        output: $output,
+        context: newContext(searchDirs = @[], partials = nbDoc.partials),
+      )
   nb.blocks.add blk
   nb.blk = blk
 
-proc getCmd(cmd, ext: cstring): tuple[isErr: bool, data: string] {.raises: [].}=
+proc getCmd(cmd, ext: cstring): tuple[isErr: bool, data: string] {.raises: [].} =
   if cmd != nil:
     (false, $cmd)
   elif ext == nil:
@@ -101,9 +110,9 @@ proc getCmd(cmd, ext: cstring): tuple[isErr: bool, data: string] {.raises: [].}=
         (false, extCommand[$ext])
 
 proc addCodeImpl(source, ext, cmd, language: cstring): cstring {.raises: [].} =
-  let 
+  let
     (cmdErrored, cmd) = getCmd(cmd, ext)
-    ext = 
+    ext =
       if ext == nil:
         fileExt
       else:
@@ -112,7 +121,7 @@ proc addCodeImpl(source, ext, cmd, language: cstring): cstring {.raises: [].} =
   if cmdErrored:
     return makeErrStr cmd
 
-  var 
+  var
     output: string
     path: string
 
@@ -132,13 +141,12 @@ proc addCodeImpl(source, ext, cmd, language: cstring): cstring {.raises: [].} =
 
   returnException:
     output = execProcess(cmd.replace("$file", path))
-  
+
   add_block("nbArbitraryCode", source, cstring output)
   if language != nil:
     nb.blk.context["language"] = "language-" & $language
   nb.blk.context["code"] = nb.blk.code
   nb.blk.context["output"] = nb.blk.output
-
 
 proc add_code*(source: cstring): cstring {.nimibProc.} =
   addCodeImpl(source, nil, nil, nil)
@@ -155,7 +163,9 @@ proc add_code_with_ext_lang*(source, ext, language: cstring): cstring {.nimibPro
 proc add_code_with_ext_cmd*(source, ext, cmd: cstring): cstring {.nimibProc.} =
   addCodeImpl(source, ext, cmd, nil)
 
-proc add_code_with_ext_cmd_lang*(source, ext, cmd, language: cstring): cstring {.nimibProc.} =
+proc add_code_with_ext_cmd_lang*(
+    source, ext, cmd, language: cstring
+): cstring {.nimibProc.} =
   addCodeImpl(source, ext, cmd, language)
 
 proc add_text*(output: cstring) {.nimibproc.} =

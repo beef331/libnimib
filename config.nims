@@ -1,5 +1,7 @@
---app:lib
---d:nimibSkipOptions
+--app:
+  lib
+--d:
+  nimibSkipOptions
 
 task installLib, "installs libnimib":
   selfExec("c -d:release src/nimib.nim")
@@ -15,3 +17,6 @@ task testrust, "builds the Rust program":
 
 task testracket, "builds the Racket program":
   exec("racket ./tests/test.rkt")
+
+task genHeader, "Generates the header file":
+  selfExec("c -c -d:genHeader src/nimib.nim")

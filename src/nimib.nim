@@ -4,6 +4,8 @@ import std/[paths, tempfiles, osproc, strutils, tables, appdirs]
 import libnimib/utils
 
 const nameStr = "nimib_$1"
+static:
+  setFormatter nameStr
 
 {.pragma: nimibProc, raises: [], exportC: nameStr, dynlib.}
 {.pragma: nimibVar, exportc: nameStr, dynlib.}
@@ -24,7 +26,7 @@ var
   defaultFileExt: string
   stringTable: Table[cstring, string]
   extData: Table[string, LanguageEntry]
-  debug {.nimibVar, expose: nameStr.}: bool
+  debug {.nimibVar, expose.}: bool
 
 template print(msg: string) = # Template to elison copies
   if debug:
@@ -34,7 +36,7 @@ proc makeErrStr(s: sink string): cstring =
   result = cstring s
   stringTable[cstring s] = ensuremove s
 
-proc free_string(cstr: cstring) {.nimibproc, expose: nameStr.} =
+proc free_string(cstr: cstring) {.nimibproc, expose.} =
   if cstr in stringTable:
     stringTable.del(cstr)
 
@@ -52,7 +54,8 @@ template returnIfNotNil(expr: cstring) =
 
 proc set_ext_cmd_language(
     ext, cmd: cstring; language = cstring(nil)
-): cstring {.nimibProc, expose: nameStr.} =
+): cstring {.nimibProc, expose.} =
+  ## Sets a triplet for what to do when reaching `ext`
   returnException:
     let ext = $ext
     extData[ext] = LanguageEntry(ext: ext, cmd: $cmd, language: $language)
@@ -68,7 +71,9 @@ proc setDefault(ext, cmd, language: cstring): cstring =
 
 proc init*(
     file, defaultExt, defaultCmd: cstring; defaultLanguageName = cstring(nil)
-): cstring {.nimibProc, expose: nameStr.} =
+): cstring {.nimibProc, expose.} =
+  ## Intitialises Nimib and sets the default language settings
+
   let
     theme = useDefault
     backend = useHtmlBackend
@@ -114,7 +119,8 @@ proc init*(
     nb.renderPlans["nbArbitraryCode"] = @["highlightCode"]
     theme nb
 
-proc add_block*(command, code, output: cstring) {.nimibProc, expose: nameStr.} =
+proc add_block*(command, code, output: cstring) {.nimibProc, expose.} =
+  ## Lowest level block allowing arbitrary blocks to be made
   let
     blk =
       NbBlock(
@@ -196,30 +202,37 @@ proc addCodeImpl(source, ext, cmd, language: cstring): cstring {.raises: [].} =
   nb.blk.context["code"] = nb.blk.code
   nb.blk.context["output"] = nb.blk.output
 
-proc add_code*(source: cstring): cstring {.nimibProc, expose: nameStr.} =
+proc add_code*(source: cstring): cstring {.nimibProc, expose.} =
+  ## Adds source, this will run using the `defaultExt` set by `nimib_init`
   addCodeImpl(source, nil, nil, nil)
 
-proc add_code_with_ext*(source, ext: cstring): cstring {.nimibProc, expose: nameStr.} =
+proc add_code_with_ext*(source, ext: cstring): cstring {.nimibProc, expose.} =
+  ## Adds source, this will run using `ext`
+  ## `nimib_set_ext_cmd_language` should have been called prior to setup what,
+  ## to do with the `ext`.
   addCodeImpl(source, ext, nil, nil)
 
-proc add_text*(output: cstring) {.nimibproc, expose: nameStr.} =
+proc add_text*(output: cstring) {.nimibproc, expose.} =
+  ## Adds text which can contain Markdown
   add_block("nbText", "", output)
 
-proc add_image*(url, caption, alt: cstring): cstring {.nimibProc, expose: nameStr.} =
+proc add_image*(url, caption, alt: cstring): cstring {.nimibProc, expose.} =
+  ## Adds an image that points to `url` with a `caption` and `alt` url
   returnException:
     nbImage($url, $caption, $alt)
 
-proc add_file(path: cstring): cstring {.nimibProc, expose: nameStr.} =
+proc add_file(path: cstring): cstring {.nimibProc, expose.} =
+  ## Adds file from `path` and annotates it with the `path`
   returnException:
     nbFile($path)
 
-proc add_file_name_content(
-    name, content: cstring
-): cstring {.nimibProc, expose: nameStr.} =
+proc add_file_name_content(name, content: cstring): cstring {.nimibProc, expose.} =
+  ## Adds file from `content` and annotates it with `name`
   returnException:
     nbFile($name, $content)
 
-proc save*(): cstring {.nimibproc, expose: nameStr.} =
+proc save*(): cstring {.nimibproc, expose.} =
+  ## Saves the generated doc to a `html` relative to the current working directory
   returnException:
     nbSave()
 

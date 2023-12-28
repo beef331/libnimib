@@ -1,20 +1,30 @@
 import pkg/nimib
 import pkg/nimib/[themes, renders]
 import std/[paths, tempfiles, osproc, strutils, tables, appdirs]
+import libnimib/utils
 
-{.pragma: nimibProc, exportc: "nimib_$1", cdecl, dynlib, raises: [].}
-{.pragma: nimibVar, exportc: "nimib_$1", dynlib.}
+const nameStr = "nimib_$1"
+
+{.pragma: nimibProc, raises: [], exportC: nameStr, dynlib.}
+{.pragma: nimibVar, exportc: nameStr, dynlib.}
 
 type
   LanguageEntry = object
     ext, cmd, language: string
+
+proc toCType(_: typedesc[TypeDef[bool]]): string =
+  ""
+
+proc toCType(_: typedesc[InsideProc[bool]]): string =
+  headers.incl "<stdbool.h>"
+  "bool"
 
 var
   nb: NbDoc
   defaultFileExt: string
   stringTable: Table[cstring, string]
   extData: Table[string, LanguageEntry]
-  debug {.nimibVar.}: bool
+  debug {.nimibVar, expose: nameStr.}: bool
 
 template print(msg: string) = # Template to elison copies
   if debug:
@@ -24,7 +34,7 @@ proc makeErrStr(s: sink string): cstring =
   result = cstring s
   stringTable[cstring s] = ensuremove s
 
-proc free_string(cstr: cstring) {.nimibproc.} =
+proc free_string(cstr: cstring) {.nimibproc, expose: nameStr.} =
   if cstr in stringTable:
     stringTable.del(cstr)
 
@@ -42,7 +52,7 @@ template returnIfNotNil(expr: cstring) =
 
 proc set_ext_cmd_language(
     ext, cmd: cstring; language = cstring(nil)
-): cstring {.nimibProc.} =
+): cstring {.nimibProc, expose: nameStr.} =
   returnException:
     let ext = $ext
     extData[ext] = LanguageEntry(ext: ext, cmd: $cmd, language: $language)
@@ -58,7 +68,7 @@ proc setDefault(ext, cmd, language: cstring): cstring =
 
 proc init*(
     file, defaultExt, defaultCmd: cstring; defaultLanguageName = cstring(nil)
-): cstring {.nimibProc.} =
+): cstring {.nimibProc, expose: nameStr.} =
   let
     theme = useDefault
     backend = useHtmlBackend
@@ -104,7 +114,7 @@ proc init*(
     nb.renderPlans["nbArbitraryCode"] = @["highlightCode"]
     theme nb
 
-proc add_block*(command, code, output: cstring) {.nimibProc.} =
+proc add_block*(command, code, output: cstring) {.nimibProc, expose: nameStr.} =
   let
     blk =
       NbBlock(
@@ -186,27 +196,33 @@ proc addCodeImpl(source, ext, cmd, language: cstring): cstring {.raises: [].} =
   nb.blk.context["code"] = nb.blk.code
   nb.blk.context["output"] = nb.blk.output
 
-proc add_code*(source: cstring): cstring {.nimibProc.} =
+proc add_code*(source: cstring): cstring {.nimibProc, expose: nameStr.} =
   addCodeImpl(source, nil, nil, nil)
 
-proc add_code_with_ext*(source, ext: cstring): cstring {.nimibProc.} =
+proc add_code_with_ext*(source, ext: cstring): cstring {.nimibProc, expose: nameStr.} =
   addCodeImpl(source, ext, nil, nil)
 
-proc add_text*(output: cstring) {.nimibproc.} =
+proc add_text*(output: cstring) {.nimibproc, expose: nameStr.} =
   add_block("nbText", "", output)
 
-proc add_image*(url, caption, alt: cstring): cstring {.nimibProc.} =
+proc add_image*(url, caption, alt: cstring): cstring {.nimibProc, expose: nameStr.} =
   returnException:
     nbImage($url, $caption, $alt)
 
-proc add_file(path: cstring): cstring {.nimibProc.} =
+proc add_file(path: cstring): cstring {.nimibProc, expose: nameStr.} =
   returnException:
     nbFile($path)
 
-proc add_file_name_content(name, content: cstring): cstring {.nimibProc.} =
+proc add_file_name_content(
+    name, content: cstring
+): cstring {.nimibProc, expose: nameStr.} =
   returnException:
     nbFile($name, $content)
 
-proc save*(): cstring {.nimibproc.} =
+proc save*(): cstring {.nimibproc, expose: nameStr.} =
   returnException:
     nbSave()
+
+when defined(genHeader):
+  static:
+    makeHeader("include/nimib.h")

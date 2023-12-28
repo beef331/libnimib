@@ -5,12 +5,20 @@ import std/[paths, tempfiles, osproc, strutils, tables, appdirs]
 {.pragma: nimibProc, exportc: "nimib_$1", cdecl, dynlib, raises: [].}
 {.pragma: nimibVar, exportc: "nimib_$1", dynlib.}
 
+type
+  LanguageEntry = object
+    ext, cmd, language: string
+
 var
   nb: NbDoc
-  execCmd: string
-  fileExt: string
+  defaultFileExt: string
   stringTable: Table[cstring, string]
-  extCommand: Table[string, string]
+  extData: Table[string, LanguageEntry]
+  debug {.nimibVar.}: bool
+
+template print(msg: string) = # Template to elison copies
+  if debug:
+    echo "[Nimib Debug]:", msg
 
 proc makeErrStr(s: sink string): cstring =
   result = cstring s
@@ -20,20 +28,6 @@ proc free_string(cstr: cstring) {.nimibproc.} =
   if cstr in stringTable:
     stringTable.del(cstr)
 
-# The follow procs are not apart of `init` to allow the user to have multiple programming languages
-# This allows doing C then Python then Rust, or whatever have you
-# Perhaps in the future `add_code` could take in `language`,
-# then use that to search a config for the desired command
-
-proc set_exec_cmd(cmd: cstring) {.nimibproc.} =
-  execCmd = $cmd
-
-proc set_file_ext(ext: cstring) {.nimibproc.} =
-  fileExt = $ext
-
-proc set_ext_cmd(ext, cmd: cstring) {.nimibproc.} =
-  extCommand[$ext] = $cmd
-
 template returnException(exp: typed): untyped =
   try:
     {.cast(raises: [CatchableError]).}:
@@ -41,7 +35,30 @@ template returnException(exp: typed): untyped =
   except CatchableError as e:
     return makeErrStr e.msg
 
-proc init*(file: cstring): cstring {.nimibProc.} =
+template returnIfNotNil(expr: cstring) =
+  let theExpr = expr
+  if theExpr != nil:
+    return theExpr
+
+proc set_ext_cmd_language(
+    ext, cmd: cstring; language = cstring(nil)
+): cstring {.nimibProc.} =
+  returnException:
+    let ext = $ext
+    extData[ext] = LanguageEntry(ext: ext, cmd: $cmd, language: $language)
+    print "Added language entry: " & $extData[ext]
+
+proc setDefault(ext, cmd, language: cstring): cstring =
+  if ext == nil:
+    return cstring"No default extension provided."
+  if cmd == nil:
+    return cstring"No default commmand provided."
+  defaultFileExt = $ext
+  set_ext_cmd_language(ext, cmd, language)
+
+proc init*(
+    file, defaultExt, defaultCmd: cstring; defaultLanguageName = cstring(nil)
+): cstring {.nimibProc.} =
   let
     theme = useDefault
     backend = useHtmlBackend
@@ -52,6 +69,9 @@ proc init*(file: cstring): cstring {.nimibProc.} =
 
   returnException:
     nb.source = read(nb.thisFile)
+
+  returnIfNotNil:
+    setDefault(defaultExt, defaultCmd, defaultLanguageName)
 
     # no option handling currently
   nb.filename = nb.thisFile.Path.splitFile.name.string & ".html"
@@ -99,31 +119,38 @@ proc add_block*(command, code, output: cstring) {.nimibProc.} =
 proc getCmd(cmd, ext: cstring): tuple[isErr: bool, data: string] {.raises: [].} =
   if cmd != nil:
     (false, $cmd)
-  elif ext == nil:
-    (false, execCmd)
-  else:
+  elif ext != nil:
     let ext = $ext
-    if ext notin extCommand:
-      (true, "No command registered for '" & ext & "'.")
-    else:
+    if ext in extData:
       {.cast(raises: []).}:
-        (false, extCommand[$ext])
+        (false, extData[ext].cmd)
+    else:
+      (true, "No registered command for '" & ext & "'.")
+  elif defaultFileExt != "":
+    print "Using default file extension"
+    getCmd(cmd, cstring defaultFileExt)
+  else:
+    (true, "No default extension.")
 
 proc addCodeImpl(source, ext, cmd, language: cstring): cstring {.raises: [].} =
-  let
-    (cmdErrored, cmd) = getCmd(cmd, ext)
-    ext =
-      if ext == nil:
-        fileExt
-      else:
-        $ext
+  let (cmdErrored, cmd) = getCmd(cmd, ext)
 
   if cmdErrored:
     return makeErrStr cmd
 
-  var
-    output: string
-    path: string
+  let
+    ext =
+      if ext == nil:
+        defaultFileExt
+      else:
+        $ext
+
+    language =
+      if ext in extData:
+        {.cast(raises: []).}:
+          extData[ext].language
+      else:
+        $language
 
   if ext == "":
     return "File extenstion not set"
@@ -132,8 +159,15 @@ proc addCodeImpl(source, ext, cmd, language: cstring): cstring {.raises: [].} =
   if source == nil:
     return "No source specified"
 
+  var
+    output: string
+    path: string
+
+  print "Adding block for: " & $(extension: ext, command: cmd, language: language)
+
   returnException:
     let (tempFile, temppath) = createTempFile("nimib_", ext, getTempDir().string)
+    print "Created path: " & temppath
     tempFile.write($source)
     tempFile.flushFile()
     tempFile.close()
@@ -142,31 +176,21 @@ proc addCodeImpl(source, ext, cmd, language: cstring): cstring {.raises: [].} =
   returnException:
     output = execProcess(cmd.replace("$file", path))
 
+  print "Block output:\n" & output
+
   add_block("nbArbitraryCode", source, cstring output)
-  if language != nil:
-    nb.blk.context["language"] = "language-" & $language
+  if language != "":
+    nb.blk.context["language"] = "language-" & language
+  else:
+    print "Not adding language syntax"
   nb.blk.context["code"] = nb.blk.code
   nb.blk.context["output"] = nb.blk.output
 
 proc add_code*(source: cstring): cstring {.nimibProc.} =
   addCodeImpl(source, nil, nil, nil)
 
-proc add_code_with_lang*(source, language: cstring): cstring {.nimibProc.} =
-  addCodeImpl(source, nil, nil, language)
-
 proc add_code_with_ext*(source, ext: cstring): cstring {.nimibProc.} =
   addCodeImpl(source, ext, nil, nil)
-
-proc add_code_with_ext_lang*(source, ext, language: cstring): cstring {.nimibProc.} =
-  addCodeImpl(source, ext, nil, language)
-
-proc add_code_with_ext_cmd*(source, ext, cmd: cstring): cstring {.nimibProc.} =
-  addCodeImpl(source, ext, cmd, nil)
-
-proc add_code_with_ext_cmd_lang*(
-    source, ext, cmd, language: cstring
-): cstring {.nimibProc.} =
-  addCodeImpl(source, ext, cmd, language)
 
 proc add_text*(output: cstring) {.nimibproc.} =
   add_block("nbText", "", output)

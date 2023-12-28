@@ -125,7 +125,7 @@ proc getCmd(cmd, ext: cstring): tuple[isErr: bool, data: string] {.raises: [].} 
       {.cast(raises: []).}:
         (false, extData[ext].cmd)
     else:
-      (true, "No registered command for '" & ext & "'.")
+      (true, "No registered command for extension '" & ext & "'.")
   elif defaultFileExt != "":
     print "Using default file extension"
     getCmd(cmd, cstring defaultFileExt)

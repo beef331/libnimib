@@ -4,7 +4,7 @@ bool nimib_debug;
 
 void nimib_free_string(char* str);
 
-char* nimib_set_ext_cmd_language(char* ext, char* cmd, char* language);
+char *nimib_set_ext_cmd_language(char* ext, char* cmd, char* language);
 char *nimib_init(char* filepath, char* ext, char* cmd, char* language);
 char *nimib_save(void);
 

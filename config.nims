@@ -19,4 +19,4 @@ task testracket, "builds the Racket program":
   exec("racket ./tests/test.rkt")
 
 task genHeader, "Generates the header file":
-  selfExec("c -c -d:genHeader src/nimib.nim")
+  selfExec("c -c -d:genHeader -f src/nimib.nim")

@@ -1,25 +1,16 @@
-import pkg/nimib
+import pkg/[nimib, seeya]
 import pkg/nimib/[themes, renders]
 import std/[paths, tempfiles, osproc, strutils, tables, appdirs]
-import libnimib/utils
+
 
 const nameStr = "nimib_$1"
-static:
-  setFormatter nameStr
-
+static: setFormatter nameStr
 {.pragma: nimibProc, raises: [], exportC: nameStr, dynlib.}
 {.pragma: nimibVar, exportc: nameStr, dynlib.}
 
 type
   LanguageEntry = object
     ext, cmd, language: string
-
-proc toCType(_: typedesc[TypeDef[bool]]): string =
-  ""
-
-proc toCType(_: typedesc[InsideProc[bool]]): string =
-  headers.incl "<stdbool.h>"
-  "bool"
 
 var
   nb: NbDoc
@@ -236,6 +227,6 @@ proc save*(): cstring {.nimibproc, expose.} =
   returnException:
     nbSave()
 
+makeHeader("include/nimib.h")
 when defined(genHeader):
-  static:
-    makeHeader("include/nimib.h")
+  static: discard staticExec("clang-format -i ../include/nimib.h")
